@@ -7,10 +7,10 @@ import (
 )
 
 type Config struct {
-	Port             string
-	DatabasePath     string
-	AnthropicAPIKey  string
-	AnthropicModel   string
+	Port         string
+	DatabasePath string
+	APIKey       string
+	Model        string
 }
 
 func Load() Config {
@@ -29,13 +29,13 @@ func Load() Config {
 
 	model := os.Getenv("MODEL")
 	if model == "" {
-		model = "claude-3-5-haiku-latest"
+		model = "openrouter/free"
 	}
 
 	return Config{
 		Port:            port,
 		DatabasePath:    databasePath,
-		AnthropicAPIKey: os.Getenv("API_KEY"),
-		AnthropicModel:  model,
+		APIKey: os.Getenv("API_KEY"),
+		Model:  model,
 	}
 }
