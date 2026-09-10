@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -60,6 +61,7 @@ func main() {
 	// Create LLM provider.
 	provider := ai.NewOpenRouterProvider(
 		cfg.APIKey,
+		cfg.Model,
 	)
 
 	// Create AI agent.
@@ -77,6 +79,25 @@ func main() {
 
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
+	router.Use(func(c *gin.Context) {
+		requestID := c.GetHeader("X-Request-ID")
+
+		if requestID == "" {
+			requestID = fmt.Sprintf(
+				"%d",
+				time.Now().UnixNano(),
+			)
+		}
+
+		c.Set("request_id", requestID)
+
+		c.Header(
+			"X-Request-ID",
+			requestID,
+		)
+
+		c.Next()
+	})
 
 	// Health check.
 	router.GET("/health", func(c *gin.Context) {

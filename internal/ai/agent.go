@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
+	"time"
 )
 
 const systemPrompt = `
@@ -37,9 +39,20 @@ IMPORTANT RULES:
 13. If the requested order does not exist, clearly state that the order
     could not be found.
 14. Keep responses concise and useful for an operations team.
+15. Before answering a question about an order, use the relevant database tool.
+16. If the user mentions an order ID, extract the numeric order ID and verify it with a tool.
+17. Never use an order ID from one tool result to answer about a different order.
+18. If multiple facts are required to answer a question, verify each required fact with the appropriate tool.
+19. If tool calls return conflicting or incomplete information, report the inconsistency instead of guessing.
+20. Never claim that an operational action was performed. This system currently provides read-only information.
 
-When a tool is appropriate, call it instead of answering from general
-knowledge.
+If the question asks for factual information about a specific order,
+always verify it using the appropriate tool.
+
+If the question is general and does not require order-specific data,
+you may answer directly.
+
+Never use general knowledge to answer order-specific questions.
 `
 
 type Agent struct {
@@ -102,9 +115,17 @@ func (a *Agent) Query(
 
 		// No tool call means the model has produced its final answer.
 		if len(modelMessage.ToolCalls) == 0 {
-			return strings.TrimSpace(
+			answer := strings.TrimSpace(
 				modelMessage.Content,
-			), nil
+			)
+
+			if answer == "" {
+				return "", fmt.Errorf(
+					"LLM returned an empty response",
+				)
+			}
+
+			return answer, nil
 		}
 
 		// IMPORTANT:
@@ -117,16 +138,38 @@ func (a *Agent) Query(
 
 		for _, toolCall := range modelMessage.ToolCalls {
 
+			start := time.Now()
+
+			log.Printf(
+				"AI tool call: name=%s arguments=%s",
+				toolCall.Function.Name,
+				toolCall.Function.Arguments,
+			)
+
 			result := a.Tools.Execute(
 				ctx,
 				toolCall.Function.Name,
 				toolCall.Function.Arguments,
 			)
 
-			toolContent, err := serializeToolResult(result)
-			if err != nil {
-				return "", err
+			duration := time.Since(start)
+
+			if result.Error != nil {
+				log.Printf(
+					"AI tool result: name=%s error=%v duration=%s",
+					result.Name,
+					result.Error,
+					duration,
+				)
+			} else {
+				log.Printf(
+					"AI tool result: name=%s duration=%s",
+					result.Name,
+					duration,
+				)
 			}
+
+			toolContent, _ := serializeToolResult(result)
 
 			messages = append(
 				messages,

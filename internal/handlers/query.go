@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -40,6 +41,10 @@ func (h *QueryHandler) Query(c *gin.Context) {
 	}
 
 	query := strings.TrimSpace(req.Query)
+	log.Printf(
+		"AI query received: %s",
+		query,
+	)
 
 	if query == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -64,11 +69,18 @@ func (h *QueryHandler) Query(c *gin.Context) {
 	if err != nil {
 		c.Error(err)
 
+		log.Printf(
+			"AI query failed: error=%v",
+			err,
+		)
+
 		c.JSON(http.StatusBadGateway, gin.H{
 			"error": "AI service temporarily unavailable",
 		})
 		return
 	}
+
+	log.Printf("AI query completed successfully")
 
 	c.JSON(http.StatusOK, QueryResponse{
 		Answer: answer,
