@@ -21,7 +21,8 @@ type QueryRequest struct {
 }
 
 type QueryResponse struct {
-	Answer string `json:"answer"`
+	Answer    string            `json:"answer"`
+	ToolCalls []ai.ToolCallTrace `json:"tool_calls"`
 }
 
 func NewQueryHandler(agent *ai.Agent) *QueryHandler {
@@ -65,7 +66,7 @@ func (h *QueryHandler) Query(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 45*time.Second)
 	defer cancel()
 
-	answer, err := h.Agent.Query(ctx, query)
+	result, err := h.Agent.Query(ctx, query)
 	if err != nil {
 		c.Error(err)
 
@@ -80,9 +81,13 @@ func (h *QueryHandler) Query(c *gin.Context) {
 		return
 	}
 
-	log.Printf("AI query completed successfully")
+	log.Printf(
+		"AI query completed successfully: tool_calls=%d",
+		len(result.ToolCalls),
+	)
 
 	c.JSON(http.StatusOK, QueryResponse{
-		Answer: answer,
+		Answer:    result.Answer,
+		ToolCalls: result.ToolCalls,
 	})
 }

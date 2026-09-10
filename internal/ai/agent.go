@@ -45,6 +45,7 @@ IMPORTANT RULES:
 18. If multiple facts are required to answer a question, verify each required fact with the appropriate tool.
 19. If tool calls return conflicting or incomplete information, report the inconsistency instead of guessing.
 20. Never claim that an operational action was performed. This system currently provides read-only information.
+21. Respond in plain text only. Do not use Markdown formatting — no asterisks for bold/italics, no "#" headers, no bullet or numbered list characters, no backticks. Write plain sentences and, if you need to separate points, use line breaks or short paragraphs instead of list syntax.
 
 If the question asks for factual information about a specific order,
 always verify it using the appropriate tool.
@@ -60,6 +61,25 @@ type Agent struct {
 	Tools     *tools.Registry
 	MaxRounds int
 	Model     string
+}
+
+// ToolCallTrace records one tool invocation made by the agent while
+// answering a query. It's returned alongside the final answer so a
+// caller (e.g. the frontend) can show which tools were consulted,
+// rather than asking the user to trust the answer blindly.
+type ToolCallTrace struct {
+	Name       string `json:"name"`
+	Arguments  string `json:"arguments"`
+	Success    bool   `json:"success"`
+	Error      string `json:"error,omitempty"`
+	DurationMs int64  `json:"duration_ms"`
+}
+
+// QueryResult is the outcome of Agent.Query: the final natural-language
+// answer plus the full trace of tool calls that produced it.
+type QueryResult struct {
+	Answer    string           `json:"answer"`
+	ToolCalls []ToolCallTrace  `json:"tool_calls"`
 }
 
 func NewAgent(
@@ -78,7 +98,7 @@ func NewAgent(
 func (a *Agent) Query(
 	ctx context.Context,
 	userQuery string,
-) (string, error) {
+) (*QueryResult, error) {
 
 	messages := []Message{
 		{
@@ -90,6 +110,8 @@ func (a *Agent) Query(
 			Content: userQuery,
 		},
 	}
+
+	trace := make([]ToolCallTrace, 0)
 
 	for round := 0; round < a.MaxRounds; round++ {
 
@@ -108,7 +130,7 @@ func (a *Agent) Query(
 		)
 
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 		modelMessage := response.Choices[0].Message
@@ -120,12 +142,15 @@ func (a *Agent) Query(
 			)
 
 			if answer == "" {
-				return "", fmt.Errorf(
+				return nil, fmt.Errorf(
 					"LLM returned an empty response",
 				)
 			}
 
-			return answer, nil
+			return &QueryResult{
+				Answer:    answer,
+				ToolCalls: trace,
+			}, nil
 		}
 
 		// IMPORTANT:
@@ -154,7 +179,16 @@ func (a *Agent) Query(
 
 			duration := time.Since(start)
 
+			callTrace := ToolCallTrace{
+				Name:       toolCall.Function.Name,
+				Arguments:  toolCall.Function.Arguments,
+				Success:    result.Error == nil,
+				DurationMs: duration.Milliseconds(),
+			}
+
 			if result.Error != nil {
+				callTrace.Error = result.Error.Error()
+
 				log.Printf(
 					"AI tool result: name=%s error=%v duration=%s",
 					result.Name,
@@ -169,6 +203,8 @@ func (a *Agent) Query(
 				)
 			}
 
+			trace = append(trace, callTrace)
+
 			toolContent, _ := serializeToolResult(result)
 
 			messages = append(
@@ -182,7 +218,7 @@ func (a *Agent) Query(
 		}
 	}
 
-	return "", fmt.Errorf(
+	return nil, fmt.Errorf(
 		"agent exceeded maximum tool-calling rounds",
 	)
 }

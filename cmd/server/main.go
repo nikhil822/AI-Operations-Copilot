@@ -99,6 +99,21 @@ func main() {
 		c.Next()
 	})
 
+	// CORS — allows the frontend to be served separately (e.g. a
+	// different port during local development) from the API.
+	router.Use(func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, X-Request-ID")
+
+		if c.Request.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+
+		c.Next()
+	})
+
 	// Health check.
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -108,6 +123,12 @@ func main() {
 
 	// AI query endpoint.
 	router.POST("/query", queryHandler.Query)
+
+	// Frontend — served from the same binary so the whole app is a
+	// single deployable artifact. index.html at "/", assets under
+	// "/static/*" (referenced as /static/style.css, /static/app.js).
+	router.StaticFile("/", "./web/index.html")
+	router.Static("/static", "./web")
 
 	// HTTP server.
 	server := &http.Server{

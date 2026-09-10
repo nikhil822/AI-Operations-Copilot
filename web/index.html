@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ops Copilot — Cars24</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand__dot" id="statusDot"></span>
+      <span class="brand__name">Ops Copilot</span>
+    </div>
+    <div class="topbar__meta">Cars24 — Order Intelligence</div>
+  </header>
+
+  <main class="layout">
+
+    <section class="transcript-panel">
+      <div class="transcript" id="transcript">
+        <div class="entry entry--system">
+          <div class="entry__label">copilot</div>
+          <div class="entry__body">
+            Ask about any order — payment status, delivery status, or a full summary.
+            I only answer from live order data, never from guesses. Try one of the
+            questions on the right, or type your own below.
+          </div>
+        </div>
+      </div>
+
+      <form class="composer" id="composer">
+        <input
+          type="text"
+          id="queryInput"
+          class="composer__input"
+          placeholder="e.g. Customer says they paid for order #1289 but delivery isn't scheduled — what's going on?"
+          autocomplete="off"
+        />
+        <button type="submit" class="composer__submit" id="submitBtn">Ask</button>
+      </form>
+    </section>
+
+    <aside class="reference-panel">
+
+      <div class="reference-block">
+        <h2 class="reference-block__title">Try asking</h2>
+        <div class="chips" id="suggestionChips"></div>
+      </div>
+
+      <div class="reference-block">
+        <h2 class="reference-block__title">Seeded orders</h2>
+        <p class="reference-block__hint">Reference IDs from the demo dataset — click to insert.</p>
+        <div class="order-list" id="orderList"></div>
+      </div>
+
+    </aside>
+
+  </main>
+
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
