@@ -10,6 +10,8 @@ import (
 	"ai-copilot/internal/config"
 	"ai-copilot/internal/database"
 	"ai-copilot/internal/handlers"
+	"ai-copilot/internal/models"
+	"ai-copilot/internal/seed"
 	"ai-copilot/internal/tools"
 
 	"github.com/gin-gonic/gin"
@@ -31,6 +33,26 @@ func main() {
 	// Create/update database tables.
 	if err := database.Migrate(db); err != nil {
 		log.Fatal(err)
+	}
+
+	// Auto-seed on first boot. Deployments without a persistent disk
+	// (e.g. Render's free tier) get a fresh, empty SQLite file on
+	// every deploy/restart and typically have no shell access to run
+	// `go run ./seed` manually — so the server seeds itself whenever
+	// the orders table is empty, rather than requiring a manual step.
+	var orderCount int64
+	if err := db.Model(&models.Order{}).Count(&orderCount).Error; err != nil {
+		log.Fatal(err)
+	}
+
+	if orderCount == 0 {
+		log.Println("database is empty — running seed automatically")
+
+		if err := seed.Run(db); err != nil {
+			log.Fatal(err)
+		}
+
+		log.Println("seed completed successfully")
 	}
 
 	// Create database-backed tools.

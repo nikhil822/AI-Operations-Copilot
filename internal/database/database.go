@@ -2,6 +2,8 @@ package database
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"ai-copilot/internal/models"
 
@@ -10,6 +12,16 @@ import (
 )
 
 func Connect(databasePath string) (*gorm.DB, error) {
+	dir := filepath.Dir(databasePath)
+	if dir != "." && dir != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, fmt.Errorf(
+				"failed to create database directory %q: %w",
+				dir,
+				err,
+			)
+		}
+	}
 	db, err := gorm.Open(sqlite.Open(databasePath), &gorm.Config{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
